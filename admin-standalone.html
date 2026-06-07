@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Admin Panel – Maruthi Senior Secondary School</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--green:#03803c;--green-dark:#026b32;--navy:#173f58;--navy-light:#245e84;--text:#111827;--muted:#6b7280;--border:#e5e7eb;--bg:#f3f4f6;--white:#fff;--red:#dc2626;--amber:#d97706;--blue:#2563eb}
+body{font-family:'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+button{cursor:pointer;font-family:inherit}
+a{text-decoration:none;color:inherit}
+
+/* ===== LOGIN ===== */
+#login-page{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#f0fdf4,#e0f2fe)}
+.login-card{background:var(--white);border-radius:20px;padding:48px 40px;box-shadow:0 20px 60px rgba(0,0,0,0.12);width:100%;max-width:420px;text-align:center}
+.login-logo{width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--green);margin-bottom:16px}
+.login-title{font-size:1.3rem;font-weight:800;color:var(--green);margin-bottom:4px}
+.login-sub{color:var(--muted);font-size:0.85rem;margin-bottom:32px}
+.field{text-align:left;margin-bottom:18px}
+.field label{display:block;font-weight:600;font-size:0.8rem;color:#374151;margin-bottom:6px}
+.field input{width:100%;border:1.5px solid var(--border);border-radius:8px;padding:11px 14px;font-size:0.95rem;outline:none;transition:border-color .15s;font-family:inherit}
+.field input:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(3,128,60,.12)}
+.btn-login{width:100%;padding:13px;background:var(--green);color:#fff;font-weight:700;font-size:0.95rem;border:none;border-radius:8px;transition:background .15s}
+.btn-login:hover{background:var(--green-dark)}
+.btn-login:disabled{opacity:.7;cursor:not-allowed}
+.login-err{background:#fef2f2;border:1px solid #fecaca;color:var(--red);border-radius:8px;padding:10px 14px;font-size:0.875rem;margin-bottom:16px;display:none}
+
+/* ===== SHELL ===== */
+#app{display:none;min-height:100vh;flex-direction:column}
+.topbar{background:var(--navy);color:#fff;padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.topbar-brand{display:flex;align-items:center;gap:10px}
+.topbar-logo{width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,.4)}
+.topbar-title{font-weight:700;font-size:0.9rem}
+.topbar-sub{font-size:0.7rem;color:#93c5fd}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.topbar-user{font-size:0.8rem;color:#d4eefc}
+.btn-logout{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;padding:6px 14px;border-radius:6px;font-size:0.8rem;font-weight:600;transition:background .15s}
+.btn-logout:hover{background:rgba(255,255,255,.2)}
+.layout{display:flex;flex:1}
+.sidebar{width:220px;background:var(--navy);min-height:calc(100vh - 60px);padding:16px 12px;flex-shrink:0}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:8px;font-size:0.875rem;font-weight:500;color:rgba(255,255,255,.75);margin-bottom:4px;cursor:pointer;transition:background .15s,color .15s;border:none;background:none;width:100%;text-align:left}
+.nav-item:hover{background:rgba(255,255,255,.08);color:#fff}
+.nav-item.active{background:var(--green);color:#fff}
+.nav-item svg{width:16px;height:16px;flex-shrink:0}
+.main{flex:1;padding:32px;overflow:auto}
+
+/* ===== CARDS ===== */
+.page{display:none}
+.page.active{display:block}
+.page-title{font-size:1.8rem;font-weight:800;color:var(--navy);margin-bottom:4px}
+.page-sub{color:var(--muted);font-size:0.9rem;margin-bottom:24px}
+.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:28px}
+.stat-card{background:var(--white);border-radius:12px;padding:20px;border:1px solid var(--border);box-shadow:0 1px 4px rgba(0,0,0,.04)}
+.stat-label{font-size:0.75rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+.stat-value{font-size:1.8rem;font-weight:800;color:var(--navy)}
+.stat-value.green{color:var(--green)}
+.stat-value.amber{color:var(--amber)}
+.stat-value.red{color:var(--red)}
+.stat-value.blue{color:var(--blue)}
+
+/* ===== TABLE ===== */
+.card{background:var(--white);border-radius:12px;border:1px solid var(--border);box-shadow:0 1px 4px rgba(0,0,0,.04);overflow:hidden}
+.card-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.card-title{font-weight:700;font-size:1rem;color:var(--navy)}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.search-wrap{position:relative}
+.search-wrap svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:14px;height:14px;color:var(--muted)}
+.inp{border:1.5px solid var(--border);border-radius:8px;padding:8px 12px;font-size:0.85rem;outline:none;font-family:inherit;transition:border-color .15s}
+.inp:focus{border-color:var(--green)}
+.inp.search{padding-left:32px;width:200px}
+select.inp{background:#fff}
+table{width:100%;border-collapse:collapse}
+thead{background:#f9fafb}
+th{padding:11px 16px;text-align:left;font-size:0.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border)}
+td{padding:12px 16px;font-size:0.875rem;border-bottom:1px solid #f3f4f6}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fafafa}
+.name-link{color:var(--green);font-weight:600;cursor:pointer}
+.name-link:hover{text-decoration:underline}
+.badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;font-size:0.72rem;font-weight:700;border:1px solid}
+.badge.pending{background:#fef9c3;color:#854d0e;border-color:#fde68a}
+.badge.accepted{background:#dcfce7;color:#166534;border-color:#86efac}
+.badge.rejected{background:#fee2e2;color:#991b1b;border-color:#fca5a5}
+.badge.waitlisted{background:#dbeafe;color:#1e40af;border-color:#93c5fd}
+.empty{padding:48px 20px;text-align:center;color:var(--muted);font-size:0.9rem}
+
+/* ===== DETAIL PANEL ===== */
+#detail-panel{position:fixed;top:0;right:-600px;width:600px;max-width:100vw;height:100vh;background:var(--white);box-shadow:-8px 0 40px rgba(0,0,0,.15);z-index:100;transition:right .3s ease;display:flex;flex-direction:column}
+#detail-panel.open{right:0}
+.panel-header{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
+.btn-close{background:none;border:1px solid var(--border);border-radius:8px;padding:6px 10px;color:var(--muted);font-size:1rem;line-height:1;display:flex;align-items:center;justify-content:center}
+.btn-close:hover{background:var(--bg)}
+.panel-name{font-size:1.1rem;font-weight:800;color:var(--navy);flex:1}
+.panel-body{flex:1;overflow-y:auto;padding:20px 24px}
+.detail-section{background:var(--bg);border-radius:10px;padding:16px;margin-bottom:16px}
+.detail-section-title{font-size:0.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.detail-field label{font-size:0.7rem;color:var(--muted);font-weight:600;display:block;margin-bottom:3px}
+.detail-field .val{font-size:0.875rem;font-weight:600;color:var(--text)}
+.status-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.btn-status{padding:8px 16px;border-radius:8px;font-size:0.8rem;font-weight:700;border:2px solid;background:#fff;transition:all .15s}
+.btn-status.accept{border-color:#16a34a;color:#16a34a}
+.btn-status.accept:hover,.btn-status.accept.active{background:#16a34a;color:#fff}
+.btn-status.waitlist{border-color:var(--blue);color:var(--blue)}
+.btn-status.waitlist:hover,.btn-status.waitlist.active{background:var(--blue);color:#fff}
+.btn-status.reject{border-color:var(--red);color:var(--red)}
+.btn-status.reject:hover,.btn-status.reject.active{background:var(--red);color:#fff}
+.contact-log-section{margin-top:8px}
+.log-entry{border-left:3px solid var(--green);padding-left:12px;margin-bottom:12px}
+.log-meta{display:flex;justify-content:space-between;font-size:0.75rem;color:var(--muted);margin-bottom:3px}
+.log-note{font-size:0.875rem}
+.log-by{font-size:0.7rem;color:var(--muted);margin-top:2px}
+.add-contact{margin-top:12px}
+.add-contact select,.add-contact textarea{width:100%;border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-size:0.85rem;font-family:inherit;outline:none;transition:border-color .15s;margin-bottom:8px}
+.add-contact select:focus,.add-contact textarea:focus{border-color:var(--green)}
+.add-contact textarea{resize:vertical;min-height:80px}
+.btn-primary{background:var(--green);color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:0.85rem;font-weight:700;transition:background .15s}
+.btn-primary:hover{background:var(--green-dark)}
+.btn-primary:disabled{opacity:.6;cursor:not-allowed}
+.btn-outline-sm{background:#fff;border:1.5px solid var(--border);color:var(--text);border-radius:8px;padding:7px 14px;font-size:0.8rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;transition:border-color .15s,background .15s}
+.btn-outline-sm:hover{border-color:var(--green);color:var(--green);background:#f0fdf4}
+.btn-outline-sm:disabled{opacity:.5;cursor:not-allowed}
+.btn-outline-sm svg{width:14px;height:14px}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:99}
+.overlay.open{display:block}
+.toast{position:fixed;bottom:24px;right:24px;background:#1f2937;color:#fff;padding:12px 20px;border-radius:10px;font-size:0.875rem;font-weight:600;z-index:200;opacity:0;transform:translateY(8px);transition:all .25s;pointer-events:none}
+.toast.show{opacity:1;transform:translateY(0)}
+.notes-area{width:100%;border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-size:0.85rem;font-family:inherit;outline:none;min-height:80px;resize:vertical}
+.notes-area:focus{border-color:var(--green)}
+@media(max-width:768px){.sidebar{display:none}.stats-grid{grid-template-columns:1fr 1fr}.detail-grid{grid-template-columns:1fr}#detail-panel{width:100vw}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-page">
+  <div class="login-card">
+    <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTB_QXhLq5042zt0gANHfPiixA8ZES3J1btfA&s" class="login-logo" alt="Logo">
+    <div class="login-title">Maruthi Senior Secondary School</div>
+    <div class="login-sub">Admin Portal Login</div>
+    <div class="login-err" id="login-err"></div>
+    <div class="field"><label>Username</label><input type="text" id="username" placeholder="Enter username" autocomplete="username"/></div>
+    <div class="field"><label>Password</label><input type="password" id="password" placeholder="Enter password" autocomplete="current-password"/></div>
+    <button class="btn-login" id="login-btn" onclick="doLogin()">Sign In</button>
+  </div>
+</div>
+
+<!-- APP SHELL -->
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-brand">
+      <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTB_QXhLq5042zt0gANHfPiixA8ZES3J1btfA&s" class="topbar-logo" alt="Logo">
+      <div>
+        <div class="topbar-title">Maruthi Senior Secondary School</div>
+        <div class="topbar-sub">Admin Portal</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <span class="topbar-user" id="user-label"></span>
+      <button class="btn-logout" onclick="doLogout()">Sign Out</button>
+    </div>
+  </div>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <button class="nav-item active" id="nav-dashboard" onclick="showPage('dashboard')">
+        <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        Dashboard
+      </button>
+      <button class="nav-item" id="nav-admissions" onclick="showPage('admissions')">
+        <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+        Admissions
+      </button>
+    </aside>
+
+    <main class="main">
+
+      <!-- DASHBOARD -->
+      <div class="page active" id="page-dashboard">
+        <div class="page-title">Dashboard</div>
+        <div class="page-sub">Overview of admission applications</div>
+        <div class="stats-grid">
+          <div class="stat-card"><div class="stat-label">Total Applications</div><div class="stat-value" id="s-total">—</div></div>
+          <div class="stat-card"><div class="stat-label">Pending</div><div class="stat-value amber" id="s-pending">—</div></div>
+          <div class="stat-card"><div class="stat-label">Accepted</div><div class="stat-value green" id="s-accepted">—</div></div>
+          <div class="stat-card"><div class="stat-label">Waitlisted</div><div class="stat-value blue" id="s-waitlisted">—</div></div>
+          <div class="stat-card"><div class="stat-label">Rejected</div><div class="stat-value red" id="s-rejected">—</div></div>
+          <div class="stat-card"><div class="stat-label">Today</div><div class="stat-value" id="s-today">—</div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Recent Applications</span></div>
+          <div id="dash-table-wrap"><div class="empty">Loading…</div></div>
+        </div>
+      </div>
+
+      <!-- ADMISSIONS -->
+      <div class="page" id="page-admissions">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:24px">
+          <div>
+            <div class="page-title">Admissions</div>
+            <div class="page-sub">Manage all student applications</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn-outline-sm" id="btn-pdf" onclick="exportPDF()" disabled>
+              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              Export PDF
+            </button>
+            <button class="btn-outline-sm" id="btn-excel" onclick="exportExcel()" disabled>
+              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>
+              Export Excel
+            </button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="toolbar">
+              <div class="search-wrap">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input class="inp search" type="text" id="adm-search" placeholder="Search student name…" oninput="filterAdmissions()"/>
+              </div>
+              <select class="inp" id="adm-status" onchange="filterAdmissions()">
+                <option value="">All Statuses</option>
+                <option value="pending">Pending</option>
+                <option value="accepted">Accepted</option>
+                <option value="waitlisted">Waitlisted</option>
+                <option value="rejected">Rejected</option>
+              </select>
+            </div>
+            <span id="adm-count" style="font-size:0.75rem;color:var(--muted)"></span>
+          </div>
+          <div id="adm-table-wrap"><div class="empty">Loading…</div></div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- DETAIL PANEL -->
+<div class="overlay" id="overlay" onclick="closeDetail()"></div>
+<div id="detail-panel">
+  <div class="panel-header">
+    <button class="btn-close" onclick="closeDetail()">✕</button>
+    <div class="panel-name" id="panel-name">—</div>
+    <span class="badge pending" id="panel-badge">pending</span>
+  </div>
+  <div class="panel-body" id="panel-body">
+    <div class="empty">Loading…</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─────────── CONFIG ───────────
+const API = '/api'; // change to full URL if running from a different domain e.g. 'https://yourapp.replit.app/api'
+
+// ─────────── STATE ───────────
+let currentUser = null;
+let allAdmissions = [];
+let filteredAdmissions = [];
+let currentAdmission = null;
+let currentContacts = [];
+
+// ─────────── UTILITIES ───────────
+function fmt(dateStr) {
+  if (!dateStr) return '—';
+  return new Date(dateStr).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
+}
+function fmtTime(dateStr) {
+  if (!dateStr) return '—';
+  return new Date(dateStr).toLocaleString('en-IN', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+}
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2500);
+}
+function badge(status) {
+  return `<span class="badge ${status}">${status.charAt(0).toUpperCase()+status.slice(1)}</span>`;
+}
+async function api(path, opts={}) {
+  const r = await fetch(API + path, { credentials: 'include', headers: { 'Content-Type': 'application/json' }, ...opts });
+  if (r.status === 401) { doLogout(); return null; }
+  if (!r.ok) { const d = await r.json().catch(()=>({})); throw new Error(d.error || 'Request failed'); }
+  return r.json();
+}
+
+// ─────────── AUTH ───────────
+async function doLogin() {
+  const btn = document.getElementById('login-btn');
+  const err = document.getElementById('login-err');
+  err.style.display = 'none';
+  btn.disabled = true; btn.textContent = 'Signing in…';
+  try {
+    const data = await fetch(API + '/auth/login', {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: document.getElementById('username').value, password: document.getElementById('password').value })
+    });
+    if (!data.ok) { const d = await data.json(); throw new Error(d.error || 'Invalid credentials'); }
+    const user = await data.json();
+    currentUser = user;
+    document.getElementById('user-label').textContent = user.username + ' (' + user.role + ')';
+    document.getElementById('login-page').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    loadDashboard();
+    loadAdmissions();
+  } catch(e) {
+    err.textContent = e.message; err.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Sign In';
+  }
+}
+document.getElementById('password').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+document.getElementById('username').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+async function doLogout() {
+  await fetch(API + '/auth/logout', { method: 'POST', credentials: 'include' }).catch(()=>{});
+  location.reload();
+}
+
+// ─────────── NAVIGATION ───────────
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.getElementById('nav-' + name).classList.add('active');
+}
+
+// ─────────── DASHBOARD ───────────
+async function loadDashboard() {
+  try {
+    const stats = await api('/admissions/stats');
+    if (!stats) return;
+    document.getElementById('s-total').textContent = stats.total;
+    document.getElementById('s-pending').textContent = stats.pending;
+    document.getElementById('s-accepted').textContent = stats.accepted;
+    document.getElementById('s-waitlisted').textContent = stats.waitlisted;
+    document.getElementById('s-rejected').textContent = stats.rejected;
+    document.getElementById('s-today').textContent = stats.todayCount;
+  } catch(e) {}
+  renderDashTable();
+}
+
+function renderDashTable() {
+  const recent = allAdmissions.slice(0, 10);
+  const wrap = document.getElementById('dash-table-wrap');
+  if (recent.length === 0) { wrap.innerHTML = '<div class="empty">No applications yet.</div>'; return; }
+  wrap.innerHTML = `<table>
+    <thead><tr><th>Student Name</th><th>Grade</th><th>Parent</th><th>Applied</th><th>Status</th></tr></thead>
+    <tbody>${recent.map(a => `<tr>
+      <td><span class="name-link" onclick="openDetail(${a.id})">${esc(a.studentName)}</span></td>
+      <td>${esc(a.grade)}</td>
+      <td><div>${esc(a.parentName)}</div><div style="font-size:.75rem;color:var(--muted)">${esc(a.parentPhone)}</div></td>
+      <td>${fmt(a.appliedAt)}</td>
+      <td>${badge(a.status)}</td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+// ─────────── ADMISSIONS ───────────
+async function loadAdmissions() {
+  try {
+    const data = await api('/admissions');
+    if (!data) return;
+    allAdmissions = data;
+    filterAdmissions();
+    renderDashTable();
+  } catch(e) {}
+}
+
+function filterAdmissions() {
+  const search = document.getElementById('adm-search').value.toLowerCase().trim();
+  const status = document.getElementById('adm-status').value;
+  filteredAdmissions = allAdmissions.filter(a => {
+    const matchName = !search || a.studentName.toLowerCase().includes(search);
+    const matchStatus = !status || a.status === status;
+    return matchName && matchStatus;
+  });
+  renderAdmTable();
+}
+
+function renderAdmTable() {
+  const wrap = document.getElementById('adm-table-wrap');
+  const count = document.getElementById('adm-count');
+  const n = filteredAdmissions.length;
+  count.textContent = n + ' application' + (n !== 1 ? 's' : '');
+  document.getElementById('btn-pdf').disabled = n === 0;
+  document.getElementById('btn-excel').disabled = n === 0;
+  if (n === 0) { wrap.innerHTML = '<div class="empty">No applications found.</div>'; return; }
+  wrap.innerHTML = `<table>
+    <thead><tr><th>#</th><th>Student Name</th><th>Grade</th><th>Parent Contact</th><th>Applied</th><th>Status</th></tr></thead>
+    <tbody>${filteredAdmissions.map((a,i) => `<tr>
+      <td style="color:var(--muted);font-size:.75rem">${i+1}</td>
+      <td><span class="name-link" onclick="openDetail(${a.id})">${esc(a.studentName)}</span></td>
+      <td>${esc(a.grade)}</td>
+      <td>
+        <div style="font-weight:600">${esc(a.parentName)}</div>
+        <div style="font-size:.75rem;color:var(--muted)">${esc(a.parentPhone)}</div>
+        ${a.parentEmail ? `<div style="font-size:.75rem;color:var(--muted)">${esc(a.parentEmail)}</div>` : ''}
+      </td>
+      <td>${fmt(a.appliedAt)}</td>
+      <td>${badge(a.status)}</td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+function esc(str) {
+  if (!str) return '';
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─────────── DETAIL PANEL ───────────
+async function openDetail(id) {
+  document.getElementById('overlay').classList.add('open');
+  document.getElementById('detail-panel').classList.add('open');
+  document.getElementById('panel-body').innerHTML = '<div class="empty">Loading…</div>';
+  try {
+    const [adm, contacts] = await Promise.all([
+      api('/admissions/' + id),
+      api('/admissions/' + id + '/contacts')
+    ]);
+    if (!adm) return;
+    currentAdmission = adm;
+    currentContacts = contacts || [];
+    renderDetail();
+  } catch(e) {
+    document.getElementById('panel-body').innerHTML = '<div class="empty">Failed to load.</div>';
+  }
+}
+
+function renderDetail() {
+  const a = currentAdmission;
+  document.getElementById('panel-name').textContent = a.studentName;
+  const pb = document.getElementById('panel-badge');
+  pb.className = 'badge ' + a.status;
+  pb.textContent = a.status.charAt(0).toUpperCase() + a.status.slice(1);
+
+  document.getElementById('panel-body').innerHTML = `
+    <div class="status-actions">
+      <button class="btn-status accept ${a.status==='accepted'?'active':''}" onclick="updateStatus('accepted')" ${a.status==='accepted'?'disabled':''}>✓ Accept</button>
+      <button class="btn-status waitlist ${a.status==='waitlisted'?'active':''}" onclick="updateStatus('waitlisted')" ${a.status==='waitlisted'?'disabled':''}>⏳ Waitlist</button>
+      <button class="btn-status reject ${a.status==='rejected'?'active':''}" onclick="updateStatus('rejected')" ${a.status==='rejected'?'disabled':''}>✕ Reject</button>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-section-title">Student Details</div>
+      <div class="detail-grid">
+        <div class="detail-field"><label>Full Name</label><div class="val">${esc(a.studentName)}</div></div>
+        <div class="detail-field"><label>Grade Applied</label><div class="val">${esc(a.grade)}</div></div>
+        <div class="detail-field"><label>Date of Birth</label><div class="val">${a.dateOfBirth ? fmt(a.dateOfBirth) : '—'}</div></div>
+        <div class="detail-field"><label>Previous School</label><div class="val">${esc(a.previousSchool) || '—'}</div></div>
+        <div class="detail-field" style="grid-column:1/-1"><label>Address</label><div class="val">${esc(a.address) || '—'}</div></div>
+        <div class="detail-field"><label>Applied On</label><div class="val">${fmtTime(a.appliedAt)}</div></div>
+        <div class="detail-field"><label>Application #</label><div class="val">${a.id}</div></div>
+      </div>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-section-title">Parent / Guardian Contact</div>
+      <div class="detail-grid">
+        <div class="detail-field"><label>Name</label><div class="val">${esc(a.parentName)}</div></div>
+        <div class="detail-field"><label>Phone</label><div class="val"><a href="tel:${esc(a.parentPhone)}" style="color:var(--green)">${esc(a.parentPhone)}</a></div></div>
+        <div class="detail-field"><label>Email</label><div class="val">${a.parentEmail ? `<a href="mailto:${esc(a.parentEmail)}" style="color:var(--green)">${esc(a.parentEmail)}</a>` : '—'}</div></div>
+      </div>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-section-title">Internal Notes</div>
+      <textarea class="notes-area" id="notes-area" placeholder="Add internal notes about this application…">${esc(a.notes || '')}</textarea>
+      <button class="btn-primary" style="margin-top:8px" onclick="saveNotes()">Save Notes</button>
+    </div>
+
+    <div class="detail-section contact-log-section">
+      <div class="detail-section-title">Contact Log</div>
+      <div id="contact-log-list">
+        ${currentContacts.length === 0 ? '<div style="color:var(--muted);font-size:.85rem;font-style:italic;margin-bottom:12px">No contact history yet.</div>'
+          : currentContacts.map(c => `
+            <div class="log-entry">
+              <div class="log-meta">
+                <span style="font-weight:600;text-transform:capitalize">${c.method.replace('_','-')}</span>
+                <span>${fmtTime(c.contactedAt)}</span>
+              </div>
+              <div class="log-note">${esc(c.note)}</div>
+              <div class="log-by">Logged by: ${esc(c.contactedBy)}</div>
+            </div>`).join('')}
+      </div>
+      <div class="add-contact">
+        <select id="contact-method">
+          <option value="phone">📞 Phone Call</option>
+          <option value="email">✉️ Email</option>
+          <option value="whatsapp">💬 WhatsApp</option>
+          <option value="in_person">🤝 In-Person</option>
+        </select>
+        <textarea id="contact-note" placeholder="Describe the conversation…"></textarea>
+        <button class="btn-primary" onclick="addContact()">Log Contact</button>
+      </div>
+    </div>
+  `;
+}
+
+function closeDetail() {
+  document.getElementById('overlay').classList.remove('open');
+  document.getElementById('detail-panel').classList.remove('open');
+  currentAdmission = null;
+}
+
+async function updateStatus(status) {
+  try {
+    const updated = await api('/admissions/' + currentAdmission.id, {
+      method: 'PATCH', body: JSON.stringify({ status })
+    });
+    if (!updated) return;
+    currentAdmission = updated;
+    // update in lists
+    allAdmissions = allAdmissions.map(a => a.id === updated.id ? updated : a);
+    filterAdmissions();
+    loadDashboard();
+    renderDetail();
+    toast('Status updated to ' + status);
+  } catch(e) { toast('Failed: ' + e.message); }
+}
+
+async function saveNotes() {
+  const notes = document.getElementById('notes-area').value;
+  try {
+    const updated = await api('/admissions/' + currentAdmission.id, {
+      method: 'PATCH', body: JSON.stringify({ notes })
+    });
+    if (!updated) return;
+    currentAdmission = updated;
+    allAdmissions = allAdmissions.map(a => a.id === updated.id ? updated : a);
+    toast('Notes saved');
+  } catch(e) { toast('Failed: ' + e.message); }
+}
+
+async function addContact() {
+  const method = document.getElementById('contact-method').value;
+  const note = document.getElementById('contact-note').value.trim();
+  if (!note) { toast('Please enter a note'); return; }
+  try {
+    await api('/admissions/' + currentAdmission.id + '/contact', {
+      method: 'POST', body: JSON.stringify({ method, note })
+    });
+    const contacts = await api('/admissions/' + currentAdmission.id + '/contacts');
+    currentContacts = contacts || [];
+    document.getElementById('contact-note').value = '';
+    renderDetail();
+    toast('Contact logged');
+  } catch(e) { toast('Failed: ' + e.message); }
+}
+
+// ─────────── EXPORT ───────────
+function exportPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'landscape' });
+  doc.setFontSize(16); doc.setTextColor(3, 128, 60);
+  doc.text('Maruthi Senior Secondary School', 14, 16);
+  doc.setFontSize(10); doc.setTextColor(100);
+  doc.text('Admissions Report — ' + new Date().toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric'}), 14, 23);
+  doc.autoTable({
+    startY: 28,
+    head: [['#','Student Name','Grade','Parent Name','Phone','Email','Applied On','Status']],
+    body: filteredAdmissions.map((a,i) => [
+      i+1, a.studentName, a.grade, a.parentName, a.parentPhone,
+      a.parentEmail||'—', fmt(a.appliedAt),
+      a.status.charAt(0).toUpperCase()+a.status.slice(1)
+    ]),
+    headStyles: { fillColor:[3,128,60], textColor:255, fontStyle:'bold' },
+    alternateRowStyles: { fillColor:[245,252,248] },
+    styles: { fontSize:8, cellPadding:3 }
+  });
+  doc.save('Admissions_' + new Date().toISOString().slice(0,10) + '.pdf');
+}
+
+function exportExcel() {
+  const rows = filteredAdmissions.map((a,i) => ({
+    'S.No': i+1,
+    'Student Name': a.studentName,
+    'Grade': a.grade,
+    'Parent Name': a.parentName,
+    'Phone': a.parentPhone,
+    'Email': a.parentEmail||'',
+    'Date of Birth': a.dateOfBirth ? fmt(a.dateOfBirth) : '',
+    'Previous School': a.previousSchool||'',
+    'Address': a.address||'',
+    'Applied On': fmtTime(a.appliedAt),
+    'Status': a.status.charAt(0).toUpperCase()+a.status.slice(1)
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = [{wch:6},{wch:22},{wch:10},{wch:22},{wch:14},{wch:26},{wch:14},{wch:22},{wch:28},{wch:22},{wch:12}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Admissions');
+  XLSX.writeFile(wb, 'Admissions_' + new Date().toISOString().slice(0,10) + '.xlsx');
+}
+</script>
+</body>
+</html>
